@@ -19,12 +19,13 @@ def done_ids(output_path: Path) -> set:
         }
 
 def append_entries(out_f, entries: list, source_id: int, query: str) -> None:
-    for text, style_tag in entries:
+    for text, style_tag, used_fallback in entries:
         out_f.write(json.dumps({
             "prompt": text,
             "query": query,
             "source_id": source_id,
             "style": style_tag,
+            "fallback": used_fallback,
         }, ensure_ascii=False) + "\n")
     out_f.flush()
 
