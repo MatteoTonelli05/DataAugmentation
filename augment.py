@@ -11,20 +11,20 @@ from styles import StyleTracker, opener
 from validation import find_similar_text, validation_reason
 
 def main():
-    ap = argparse.ArgumentParser(description="Data augmentation locale per dataset text-to-SPARQL, via Ollama")
-    ap.add_argument("--input", required=True, help="file .jsonl di input, con colonna value_spans")
-    ap.add_argument("--output", required=True, help="file .jsonl di output (append, ripete da dove interrotto)")
-    ap.add_argument("--model", default="gemma4:e2b", help="tag del modello Ollama da usare")
-    ap.add_argument("--n-per-example", type=int, default=5, help="quante varianti generare per ogni esempio")
-    ap.add_argument("--max-attempts", type=int, default=5, help="tentativi massimi per ogni pezzo di testo")
-    ap.add_argument("--base-temperature", type=float, default=0.6, help="temperatura del primo tentativo")
-    ap.add_argument("--max-temperature", type=float, default=0.95, help="temperatura dell'ultimo tentativo")
-    ap.add_argument("--split-threshold", type=int, default=12, help="oltre quanti valori spezzare l'esempio a metà")
-    ap.add_argument("--language", default="English", help="lingua di generazione, es. English o Italian")
+    ap = argparse.ArgumentParser(description="Local data augmentation for text-to-SPARQL dataset, via Ollama")
+    ap.add_argument("--input", required=True, help="input .jsonl file, with a value_spans column")
+    ap.add_argument("--output", required=True, help="output .jsonl file (append, resumes where it left off)")
+    ap.add_argument("--model", default="gemma4:e2b", help="Ollama model tag to use")
+    ap.add_argument("--n-per-example", type=int, default=5, help="how many variants to generate per example")
+    ap.add_argument("--max-attempts", type=int, default=5, help="max attempts for each piece of text")
+    ap.add_argument("--base-temperature", type=float, default=0.6, help="temperature of the first attempt")
+    ap.add_argument("--max-temperature", type=float, default=0.95, help="temperature of the last attempt")
+    ap.add_argument("--split-threshold", type=int, default=12, help="above how many values to split the example in half")
+    ap.add_argument("--language", default="English", help="generation language, e.g. English or Italian")
     ap.add_argument("--stats-output", default=None,
-                     help="file .json dove salvare le statistiche QA della run "
-                          "(default: <output>.stats.json). Viene aggiornato ad ogni record, "
-                          "e ricaricato se gia' esistente (utile quando si riprende una run interrotta).")
+                     help="json file where the run QA stats are saved "
+                          "(default: <output>.stats.json). Updated after each record, "
+                          "and reloaded if it already exists (useful when resuming an interrupted run).")
     args = ap.parse_args()
 
     input_path, output_path = Path(args.input), Path(args.output)
@@ -79,7 +79,7 @@ def main():
                     if reason is None and tracker.opener_used_recently(style_tag, opening_text):
                         reason = (
                             f"this opening (\"{opener(opening_text)}...\") was already used recently "
-                            f"for the '{style_tag}' style — start with different words"
+                            f"for the '{style_tag}' style - start with different words"
                         )
                     if reason is None:
                         accepted.append((candidate, style_tag, used_fallback))
@@ -113,7 +113,7 @@ def main():
 
     stats.print_summary()
     diversity_report(output_path)
-    print(f"\nStatistiche QA salvate in: {stats_path}")
+    print(f"\nQA stats saved to: {stats_path}")
 
 if __name__ == "__main__":
     main()

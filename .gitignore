@@ -1,5 +1,4 @@
-@"
 *.jsonl
 __pycache__/
 *.pyc
-"@ | Out-File -Encoding utf8 .gitignore
+*.stats.json

@@ -6,7 +6,7 @@ Rules:
 - The original has a rigid template style with awkward repetition like "diagnosis (diagnosis)": REMOVE this repetition and phrase naturally
 - Use natural, varied wording
 - Do NOT end with a question mark, period, or any other punctuation
-- Do NOT add a leading "and" — it gets added automatically when this is joined to the rest
+- Do NOT add a leading "and" - it gets added automatically when this is joined to the rest
 {avoid_section}
 Original fragment: {fragment}
 
@@ -19,7 +19,7 @@ Rules:
 - Every single placeholder in the original MUST appear, unchanged, in the reformulation
 - The original has a rigid template style with awkward repetition like "diagnosis (diagnosis)": REMOVE this repetition and phrase naturally
 - Write it as {style}
-- Use natural, varied wording — avoid generic, overused sentence openings
+- Use natural, varied wording - avoid generic, overused sentence openings
 {avoid_history_section}- Keep all clinical/medical meaning exactly intact, do not introduce unrelated medical concepts
 - Output ONLY the reformulation, nothing else: no numbering, no bullets, no preamble, no quotes
 {avoid_section}
@@ -42,5 +42,5 @@ def build_avoid_section(avoid_text: str, reason: str = None) -> str:
     reason_line = f" Specifically, the problem was: {reason}." if reason else ""
     return (
         f"\nA previous attempt was rejected.{reason_line} Do NOT repeat this mistake, "
-        f"and do NOT repeat this wording — write something meaningfully different:\n\"{avoid_text}\"\n"
+        f"and do NOT repeat this wording - write something meaningfully different:\n\"{avoid_text}\"\n"
     )

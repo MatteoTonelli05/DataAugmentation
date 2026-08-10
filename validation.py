@@ -14,11 +14,11 @@ def similarity_threshold_for(text: str, base: float = 0.85, lenient_cap: float =
 def validation_reason(candidate: str, mapping: dict, accepted_so_far: list, max_similarity: float = None) -> str:
     missing = [p for p in mapping if p not in candidate]
     if missing:
-        return f"you dropped the placeholder(s) {', '.join(missing)} — every single one must appear unchanged"
+        return f"you dropped the placeholder(s) {', '.join(missing)} - every single one must appear unchanged"
 
     malformed = sorted(set(m for m in LOOSE_VAL_RE.findall(candidate) if m not in mapping))
     if malformed:
-        return f"you wrote malformed or invented placeholder-like text: {', '.join(malformed)} — placeholders must be copied exactly, never altered"
+        return f"you wrote malformed or invented placeholder-like text: {', '.join(malformed)} - placeholders must be copied exactly, never altered"
 
     threshold = max_similarity if max_similarity is not None else similarity_threshold_for(candidate)
     for prev in accepted_so_far:

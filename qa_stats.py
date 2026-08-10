@@ -4,15 +4,6 @@ from pathlib import Path
 
 
 class QAStats:
-    """Accumula statistiche di qualita' sulla run di augmentation e le
-    salva in un unico file JSON, cosi' da poterle ispezionare o confrontare
-    tra run diverse (es. prima/dopo un fix).
-
-    Supporta il resume: se il file esiste gia' (perche' la run e' stata
-    interrotta e riavviata, come gia' previsto da --output in append mode),
-    i contatori vengono ricaricati e continuano ad accumulare invece di
-    ripartire da zero.
-    """
 
     def __init__(self):
         self.total_slots = 0
@@ -20,8 +11,6 @@ class QAStats:
         self.style_accepted: dict[str, int] = defaultdict(int)
         self.fallback_count = 0
         self.failed_slots: list[dict] = []
-
-    # ---- raccolta durante la run -------------------------------------
 
     def record_slot(self) -> None:
         self.total_slots += 1
@@ -35,15 +24,11 @@ class QAStats:
             self.fallback_count += 1
 
     def record_slot_failure(self, record_id: int, slot: int, attempts: list[dict]) -> None:
-        """attempts: lista di {"style": tag, "reason": motivo del rigetto},
-        una entry per ogni outer_attempt fallito su questo slot."""
         self.failed_slots.append({
             "record_id": record_id,
             "slot": slot,
             "attempts": attempts,
         })
-
-    # ---- persistenza ----------------------------------------------------
 
     def to_dict(self) -> dict:
         slots_failed = len(self.failed_slots)
@@ -80,14 +65,14 @@ class QAStats:
         print("\n" + "=" * 70)
         print("QA STATS")
         print("=" * 70)
-        print(f"Slot totali tentati   : {d['total_slots']}")
-        print(f"Slot falliti (0 varianti prodotte): {d['slots_failed']}")
+        print(f"Total slots attempted : {d['total_slots']}")
+        print(f"Failed slots (0 variants produced): {d['slots_failed']}")
         if d["yield_rate"] is not None:
             print(f"Yield rate            : {d['yield_rate']:.1%}")
-        print(f"Varianti da fallback  : {d['fallback_count']}")
-        print("Tentativi/accettati per stile:")
+        print(f"Fallback variants     : {d['fallback_count']}")
+        print("Attempts/accepted per style:")
         for style in sorted(d["style_attempts"]):
             att = d["style_attempts"].get(style, 0)
             acc = d["style_accepted"].get(style, 0)
             rate = acc / att if att else 0
-            print(f"  {style:<16} tentati={att:<5} accettati={acc:<5} ({rate:.0%})")
+            print(f"  {style:<16} attempted={att:<5} accepted={acc:<5} ({rate:.0%})")
