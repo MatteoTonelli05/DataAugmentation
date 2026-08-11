@@ -52,13 +52,15 @@ def _protect_between(text: str) -> str:
 def _restore_between(text: str) -> str:
     return text.replace(BETWEEN_SENTINEL, " and ")
 
-def split_in_half(masked_text: str, mapping: dict) -> tuple[str, str]:
+def split_into_chunks(masked_text: str, mapping: dict, max_values_per_chunk: int) -> list[str]:
     clauses = _protect_between(masked_text).split(CLAUSE_SEP)
-    half = len(mapping) / 2
-    first, second, count, in_first = [], [], 0, True
+    chunks: list[list[str]] = [[]]
+    count_in_chunk = 0
     for clause in clauses:
-        if in_first and count >= half:
-            in_first = False
-        (first if in_first else second).append(clause)
-        count += len(VAL_RE.findall(clause))
-    return _restore_between(CLAUSE_SEP.join(first)), _restore_between(CLAUSE_SEP.join(second))
+        n_values = len(VAL_RE.findall(clause))
+        if count_in_chunk > 0 and count_in_chunk + n_values > max_values_per_chunk:
+            chunks.append([])
+            count_in_chunk = 0
+        chunks[-1].append(clause)
+        count_in_chunk += n_values
+    return [_restore_between(CLAUSE_SEP.join(c)) for c in chunks if c]

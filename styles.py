@@ -21,10 +21,11 @@ def opener(text: str, n_words: int = 4) -> str:
 
 class StyleTracker:
 
-    def __init__(self, recent_size: int = 3, max_chars: int = 160, opener_window: int = 12):
-        self._style_cycle = itertools.cycle(STYLES)
-        self._recent_texts = {tag: [] for tag, _ in STYLES}
-        self._opener_history = {tag: [] for tag, _ in STYLES}
+    def __init__(self, styles: list = None, recent_size: int = 3, max_chars: int = 160, opener_window: int = 12):
+        self._styles = styles if styles is not None else STYLES
+        self._style_cycle = itertools.cycle(self._styles)
+        self._recent_texts = {tag: [] for tag, _ in self._styles}
+        self._opener_history = {tag: [] for tag, _ in self._styles}
         self._recent_size = recent_size
         self._max_chars = max_chars
         self._opener_window = opener_window

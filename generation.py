@@ -1,7 +1,7 @@
 import re
 
 from logging_utils import log_call, log_piece_fallback, log_rejected
-from masking import CLAUSE_SEP, split_in_half, submapping
+from masking import CLAUSE_SEP, split_into_chunks, submapping
 from prompting import FRAGMENT_TEMPLATE, PROMPT_TEMPLATE, build_avoid_history_section, build_avoid_section
 from llm_client import call_ollama, extract_candidate
 from validation import validation_reason
@@ -70,37 +70,47 @@ def generate_piece(model: str, piece_text: str, piece_mapping: dict, style_desc:
     log_piece_fallback(indent, label, max_attempts)
     return piece_text, total_elapsed, True
 
+# The one budget left in the system: how many literal values a single LLM
+# call can juggle well before quality degrades. Everything else (how many
+# pieces a given record needs, if any) is derived from this per record,
+# instead of a fixed split-or-not threshold that either wastes effort on
+# simple records or is not enough for very complex ones.
+MAX_VALUES_PER_CHUNK = 5
+
 def generate_variant(model: str, masked_text: str, mapping: dict, style_tag: str, style_desc: str,
-                      split_threshold: int, max_attempts: int, base_temp: float, max_temp: float,
+                      max_attempts: int, base_temp: float, max_temp: float,
                       avoid_history: list, slot_label: str,
                       avoid_text: str = None, avoid_reason: str = None, language: str = "English") -> tuple[str, float, bool, str]:
-    if len(mapping) <= split_threshold:
+    chunks = split_into_chunks(masked_text, mapping, MAX_VALUES_PER_CHUNK)
+
+    total_elapsed = 0.0
+    any_fallback = False
+    pieces: list[str] = []
+    first_piece_text = ""
+
+    for i, chunk_text in enumerate(chunks):
+        chunk_map = submapping(chunk_text, mapping)
+        is_first = i == 0
         text, elapsed, used_fallback = generate_piece(
-            model, masked_text, mapping, style_desc,
-            max_attempts, base_temp, max_temp, avoid_history,
-            indent=1, label=slot_label,
-            avoid_text=avoid_text, avoid_reason=avoid_reason, language=language,
+            model, chunk_text, chunk_map, style_desc,
+            max_attempts, base_temp, max_temp,
+            avoid_history if is_first else None,
+            indent=1, label=f"{slot_label} part {i + 1}/{len(chunks)}",
+            avoid_text=avoid_text if is_first else None,
+            avoid_reason=avoid_reason if is_first else None,
+            as_fragment=not is_first,
+            language=language,
         )
-        return text, elapsed, used_fallback, text
+        total_elapsed += elapsed
+        any_fallback = any_fallback or used_fallback
+        if is_first:
+            first_piece_text = text
+        pieces.append(text)
 
-    first_half, second_half = split_in_half(masked_text, mapping)
-    map1, map2 = submapping(first_half, mapping), submapping(second_half, mapping)
-
-    text1, elapsed1, fallback1 = generate_piece(
-        model, first_half, map1, style_desc,
-        max_attempts, base_temp, max_temp, avoid_history,
-        indent=1, label=f"{slot_label} half 1/2",
-        avoid_text=avoid_text, avoid_reason=avoid_reason, language=language,
-    )
-    text2, elapsed2, fallback2 = generate_piece(
-        model, second_half, map2, style_desc,
-        max_attempts, base_temp, max_temp, None,
-        indent=1, label=f"{slot_label} half 2/2",
-        as_fragment=True, language=language,
-    )
+    if len(pieces) == 1:
+        return pieces[0], total_elapsed, any_fallback, pieces[0]
 
     final_punct = "?" if style_tag in QUESTION_STYLES else "."
-    text1_clean = TERMINAL_PUNCT_RE.sub("", text1).rstrip()
-    text2_clean = TERMINAL_PUNCT_RE.sub("", text2).rstrip()
-    combined = f"{text1_clean}{CLAUSE_SEP}{text2_clean}{final_punct}"
-    return combined, elapsed1 + elapsed2, fallback1 or fallback2, text1_clean
+    cleaned = [TERMINAL_PUNCT_RE.sub("", p).rstrip() for p in pieces]
+    combined = CLAUSE_SEP.join(cleaned) + final_punct
+    return combined, total_elapsed, any_fallback, first_piece_text
