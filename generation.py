@@ -2,9 +2,9 @@ import re
 
 from logging_utils import log_call, log_piece_fallback, log_rejected
 from masking import CLAUSE_SEP, split_into_chunks, submapping
-from prompting import FRAGMENT_TEMPLATE, PROMPT_TEMPLATE, build_avoid_history_section, build_avoid_section
+from prompting import FRAGMENT_TEMPLATE, NO_MASK_TEMPLATE, PROMPT_TEMPLATE, build_avoid_history_section, build_avoid_section, build_value_hints_section
 from llm_client import call_ollama, extract_candidate
-from validation import validation_reason
+from validation import validation_reason, validation_reason_with_hints
 
 TERMINAL_PUNCT_RE = re.compile(r"[?.!]+\s*$")
 QUESTION_STYLES = {"question", "conversational", "exploratory", "cohort"}
@@ -75,7 +75,7 @@ def generate_piece(model: str, piece_text: str, piece_mapping: dict, style_desc:
 # pieces a given record needs, if any) is derived from this per record,
 # instead of a fixed split-or-not threshold that either wastes effort on
 # simple records or is not enough for very complex ones.
-MAX_VALUES_PER_CHUNK = 5
+MAX_VALUES_PER_CHUNK = 12
 
 def generate_variant(model: str, masked_text: str, mapping: dict, style_tag: str, style_desc: str,
                       max_attempts: int, base_temp: float, max_temp: float,
@@ -114,3 +114,42 @@ def generate_variant(model: str, masked_text: str, mapping: dict, style_tag: str
     cleaned = [TERMINAL_PUNCT_RE.sub("", p).rstrip() for p in pieces]
     combined = CLAUSE_SEP.join(cleaned) + final_punct
     return combined, total_elapsed, any_fallback, first_piece_text
+
+
+def generate_variant_no_mask(model: str, text: str, values: list, style_tag: str, style_desc: str,
+                              max_attempts: int, base_temp: float, max_temp: float,
+                              avoid_history: list, slot_label: str,
+                              avoid_text: str = None, avoid_reason: str = None, language: str = "English",
+                              hints: dict = None) -> tuple[str, float, bool, str]:
+    # Deliberately no chunking here: this mode exists to reproduce the
+    # pre-masking, single-shot behavior for direct comparison, not to be a
+    # second production path.
+    hints = hints or {}
+    identity_mapping = {v: v for v in values}
+    value_list = ", ".join(f'"{v}"' for v in values)
+    total_elapsed = 0.0
+
+    for attempt in range(max_attempts):
+        temperature = temperature_for_attempt(attempt, max_attempts, base_temp, max_temp)
+        attempt_label = f"{slot_label} try {attempt + 1}/{max_attempts}"
+
+        prompt = NO_MASK_TEMPLATE.format(
+            question=text, style=style_desc, language=language, value_list=value_list,
+            value_hints_section=build_value_hints_section(hints),
+            avoid_section=build_avoid_section(avoid_text, avoid_reason),
+            avoid_history_section=build_avoid_history_section(avoid_history if attempt == 0 else None),
+        )
+        raw, elapsed = call_ollama(model, prompt, temperature, num_predict_for(identity_mapping))
+        candidate = extract_candidate(raw, identity_mapping)
+        total_elapsed += elapsed
+
+        reason = validation_reason_with_hints(candidate, values, hints, [])
+        if reason is None:
+            log_call(1, attempt_label, temperature, elapsed)
+            return candidate, total_elapsed, False, candidate
+
+        log_rejected(1, attempt_label, reason, candidate)
+        avoid_text, avoid_reason = candidate, reason
+
+    log_piece_fallback(1, slot_label, max_attempts)
+    return text, total_elapsed, True, text

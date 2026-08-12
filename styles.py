@@ -3,17 +3,16 @@ import itertools
 from masking import VAL_RE
 
 STYLES = [
-    ("question", "a natural interrogative sentence; choose your own question word and phrasing, vary it each time, do not default to a generic opener"),
-    ("imperative", "a command/instruction sentence; choose your own verb each time instead of a generic one"),
-    ("declarative", "a plain declarative statement describing the criteria, not phrased as a question or command"),
-    ("conversational", "a casual, natural-sounding way of asking, as if speaking informally"),
-    ("formal", "a formal, precise clinical/administrative-register request"),
-    ("keyword", "a compact, telegraphic keyword-style phrase, not a full sentence"),
-    ("technical", "a technical/database-oriented framing, as if describing query filters or record counts to a fellow engineer"),
+    ("technical_sql", "a technical, database-oriented framing, as if describing query filters to a fellow engineer (e.g. field/value style), without literally writing SQL syntax"),
+    ("clinical_formal", "a formal, precise clinical or administrative-register request, as in a clinical document"),
+    ("age_based", "framed around the patient's age or birth timeframe; you may describe the relevant age range or life stage IN ADDITION to the literal placeholders, never as a replacement for them"),
     ("reporting", "a business-reporting framing, as if requesting a volumetric or statistical report from a dashboard"),
-    ("analytical", "an analytical framing, as if describing a filtering or analysis procedure applied to a dataset"),
+    ("direct_simple", "direct and simple, no elaboration, minimal wording"),
+    ("analytical", "an analytical framing, as if describing a filtering, segmentation, or cross-referencing procedure applied to a dataset"),
+    ("natural_language", "a natural, conversational spoken-style question, as a person would actually ask it out loud"),
+    ("statistical", "a statistical/counting framing, asking how many records or patients match, or what the incidence is"),
+    ("generational", "framed around the patient cohort or generation as a whole, describing the group rather than an individual"),
     ("exploratory", "an exploratory framing, as if browsing or searching through the data out of curiosity"),
-    ("cohort", "an age- or cohort-based framing; you may describe the relevant age range or generational cohort IN ADDITION to the literal placeholders, never as a replacement for them"),
 ]
 
 def opener(text: str, n_words: int = 4) -> str:

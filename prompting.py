@@ -4,6 +4,7 @@ Rules:
 - The text below contains placeholders in square brackets, each one unique: copy each one EXACTLY as it appears, character-for-character. Never invent a new placeholder, never reuse one placeholder for a different value, never write a placeholder that is not literally present in the text below
 - Every single placeholder in the original MUST appear, unchanged, in the rewritten fragment
 - The original has a rigid template style with awkward repetition like "diagnosis (diagnosis)": REMOVE this repetition and phrase naturally
+- The original sometimes narrates a chain of navigation steps that only exists to reach one final detail (e.g. "which has body measurement which has height with body metric unit [VAL]"). If naming every intermediate step adds nothing a reader needs, compress the chain into its natural outcome (e.g. "with a height measured in [VAL]"). But if an intermediate step carries real meaning of its own for this question, keep it
 - Use natural, varied wording
 - Don't just swap words while keeping the same clause order: if there are multiple facts in this fragment, feel free to reorder them or merge them differently, not always the same sequence
 - Do NOT end with a question mark, period, or any other punctuation
@@ -19,6 +20,7 @@ Rules:
 - The text below contains placeholders in square brackets, each one unique: copy each one EXACTLY as it appears, character-for-character. Never invent a new placeholder, never reuse one placeholder for a different value, never write a placeholder that is not literally present in the text below
 - Every single placeholder in the original MUST appear, unchanged, in the reformulation
 - The original has a rigid template style with awkward repetition like "diagnosis (diagnosis)": REMOVE this repetition and phrase naturally
+- The original sometimes narrates a chain of navigation steps that only exists to reach one final detail (e.g. "which has body measurement which has height with body metric unit [VAL]"). If naming every intermediate step adds nothing a reader needs, compress the chain into its natural outcome (e.g. "with a height measured in [VAL]"). But if an intermediate step carries real meaning of its own for this question (e.g. it names the specific relation being asked about), keep it - use your judgment on what actually matters for this particular question, do not compress everything by default
 - Write it as {style}
 - Use natural, varied wording - avoid generic, overused sentence openings
 - Don't just substitute synonyms while keeping the same order of facts: actively vary which fact you mention first. Don't always follow the original's traversal order (e.g. patient, then therapy, then diagnosis, then code) - sometimes lead with the most specific or most distinctive detail instead, sometimes lead with a date or a value, and reorder the rest around it
@@ -28,6 +30,27 @@ Rules:
 Original: {question}
 
 Reformulation:"""
+
+NO_MASK_TEMPLATE = """Rewrite the following query request as a single reformulation in {language}.
+
+Rules:
+- The text below contains literal values (identifiers, codes, dates, numbers) that must appear in your reformulation, EITHER exactly as given OR, where suggested below, in the natural phrasing shown: {value_list}
+{value_hints_section}- The original has a rigid template style with awkward repetition like "diagnosis (diagnosis)": REMOVE this repetition and phrase naturally
+- Write it as {style}
+- Use natural, varied wording - avoid generic, overused sentence openings
+- Don't just substitute synonyms while keeping the same order of facts: actively vary which fact you mention first
+{avoid_history_section}- Keep all clinical/medical meaning exactly intact, do not introduce unrelated medical concepts
+- Output ONLY the reformulation, nothing else: no numbering, no bullets, no preamble, no quotes
+{avoid_section}
+Original: {question}
+
+Reformulation:"""
+
+def build_value_hints_section(hints: dict) -> str:
+    if not hints:
+        return ""
+    items = "\n".join(f'  - "{value}" -> can also be phrased as "{hint}"' for value, hint in hints.items())
+    return f"Some values have natural alternative phrasings you may use instead:\n{items}\n"
 
 def build_avoid_history_section(previous_texts: list) -> str:
     if not previous_texts:

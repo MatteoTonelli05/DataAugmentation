@@ -33,6 +33,15 @@ def unmask(text: str, mapping: dict) -> str:
         text = text.replace(placeholder, value)
     return text
 
+
+def unmask_with_hints(text: str, mapping: dict, hints: dict, hint_probability: float, rng) -> str:
+    for placeholder, value in mapping.items():
+        replacement = value
+        if placeholder in hints and rng.random() < hint_probability:
+            replacement = hints[placeholder]
+        text = text.replace(placeholder, replacement)
+    return text
+
 def submapping(text: str, mapping: dict) -> dict:
     keys = VAL_RE.findall(text)
     return {k: mapping[k] for k in dict.fromkeys(keys)}
@@ -45,6 +54,30 @@ def strip_label_repetition(text: str) -> str:
         prev = text
         text = _REPEAT_LABEL_RE.sub(r"\1", text)
     return text
+
+_BOOL_VALUES = {"true", "false"}
+
+def simplify_boolean_phrasing(text: str, mapping: dict) -> tuple[str, dict]:
+    new_mapping = dict(mapping)
+    for placeholder, value in mapping.items():
+        if value.lower() not in _BOOL_VALUES:
+            continue
+        is_true = value.lower() == "true"
+        repl = r"with \1" if is_true else r"without \1"
+        esc = re.escape(placeholder)
+
+        stop = r"(?:with|which|and)"
+        which_re = re.compile(rf"\bwhich ((?:(?!{stop}\b)\w+ ?){{1,5}}) is {esc}", re.IGNORECASE)
+        with_re = re.compile(rf"\bwith ((?:(?!{stop}\b)\w+ ?){{1,5}}) {esc}", re.IGNORECASE)
+
+        if which_re.search(text):
+            text = which_re.sub(repl, text)
+            del new_mapping[placeholder]
+        elif with_re.search(text):
+            text = with_re.sub(repl, text)
+            del new_mapping[placeholder]
+
+    return text, new_mapping
 
 def _protect_between(text: str) -> str:
     return BETWEEN_RE.sub(lambda m: f"{m.group(1)}{BETWEEN_SENTINEL}{m.group(2)}", text)
