@@ -15,7 +15,7 @@ STYLES = [
     ("exploratory", "an exploratory framing, as if browsing or searching through the data out of curiosity"),
 ]
 
-def opener(text: str, n_words: int = 4) -> str:
+def opener(text: str, n_words: int = 2) -> str:
     return " ".join(text.split()[:n_words]).lower()
 
 class StyleTracker:

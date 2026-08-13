@@ -38,6 +38,16 @@ def natural_number(value: str) -> str | None:
     return num2words(n)
 
 
+def natural_compound_label(value: str) -> str | None:
+    if " - " not in value:
+        return None
+    prefix, _, suffix = value.partition(" - ")
+    suffix = suffix.strip()
+    if not suffix or len(suffix) >= len(prefix):
+        return None
+    return suffix
+
+
 def _plausible_synonym_candidate(value: str) -> bool:
     if not (2 <= len(value) <= 40):
         return False
@@ -72,7 +82,7 @@ def llm_synonym(model: str, value: str) -> str | None:
 def build_hint_map(mapping: dict, model: str = None) -> dict:
     hints = {}
     for placeholder, value in mapping.items():
-        hint = natural_date(value) or natural_number(value)
+        hint = natural_date(value) or natural_number(value) or natural_compound_label(value)
         if not hint and model:
             hint = llm_synonym(model, value)
         if hint:

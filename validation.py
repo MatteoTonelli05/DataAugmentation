@@ -1,6 +1,7 @@
 import difflib
 
 from masking import LOOSE_VAL_RE
+from value_hints import _plausible_synonym_candidate
 
 def similarity_threshold_for(text: str, base: float = 0.85, lenient_cap: float = 0.97, short_words: int = 6, long_words: int = 20) -> float:
     n_words = len(text.split())
@@ -47,6 +48,8 @@ def missing_values_with_hints(candidate: str, values: list, hints: dict) -> list
             continue
         hint = hints.get(v)
         if hint and hint in candidate:
+            continue
+        if _plausible_synonym_candidate(v) and v.lower() in candidate.lower():
             continue
         missing.append(v)
     return missing
