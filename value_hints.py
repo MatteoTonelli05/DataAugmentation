@@ -13,8 +13,10 @@ DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?:T\d{2}:\d{2}:\d{2})?$")
 NUMBER_RE = re.compile(r"^\d+$")
 
 _URL_RE = re.compile(r"^https?://")
-_CODE_PREFIX_RE = re.compile(r"^[a-zA-Z]+:")
+_CODE_PREFIX_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9]*:")
 _JUNK_SYMBOLS_RE = re.compile(r"[?+\]\[/><;*!^=\\|{}]")
+_GENDER_VALUES = {"male", "female", "unknown"}
+_CLINICAL_GRADE_RE = re.compile(r"^(grade\s+\d+|[ivx]+\s*\(AJCC\)|stage\s+[ivx\d]+)$", re.IGNORECASE)
 
 _SYNONYM_CACHE: dict[str, str | None] = {}
 
@@ -55,6 +57,14 @@ def _plausible_synonym_candidate(value: str) -> bool:
         return False
     if _JUNK_SYMBOLS_RE.search(value):
         return False
+    if value.strip().lower() in _GENDER_VALUES:
+        # "sex assigned at birth" is deliberately distinct from gender identity;
+        # a loose synonym like "Woman"/"Man" would conflate the two.
+        return False
+    if _CLINICAL_GRADE_RE.match(value.strip()):
+        # controlled clinical staging/grading (e.g. "Grade 5", "IV (AJCC)") has
+        # a precise meaning that a colloquial synonym can silently change.
+        return False
     return True
 
 
@@ -69,7 +79,9 @@ def llm_synonym(model: str, value: str) -> str | None:
         f'Is there a common, everyday English word or short phrase that means the same as "{value}", '
         f'the way an ordinary person would say it (not a database or clinical code)? '
         f'If yes, reply with ONLY that word or phrase, nothing else. '
-        f'If "{value}" has no natural everyday synonym, reply with exactly: NONE'
+        f'If "{value}" is a coded identifier, a controlled clinical classification (like a stage, grade, '
+        f'or diagnosis code), or anything where you are not certain the everyday word means EXACTLY '
+        f'the same thing, reply with exactly: NONE. Do not guess.'
     )
     raw, _elapsed = call_ollama(model, prompt, temperature=0.3, num_predict=20)
     answer = raw.strip().strip('"').splitlines()[0].strip() if raw.strip() else ""

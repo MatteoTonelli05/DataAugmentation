@@ -54,6 +54,7 @@ def augment_record(record: dict, args, tracker: StyleTracker, stats: QAStats) ->
         avoid_text, avoid_reason = None, None
         slot_succeeded = False
         slot_attempts_log = []
+        opener_only_reject = None
 
         for _outer in range(args.outer_attempts):
             style_tag, style_desc = tracker.next_style()
@@ -81,11 +82,18 @@ def augment_record(record: dict, args, tracker: StyleTracker, stats: QAStats) ->
                 reason = validation_reason_with_hints(candidate, list(mapping.keys()), hints, [t for t, _s, _f in accepted])
             else:
                 reason = validation_reason(candidate, mapping, [t for t, _s, _f in accepted])
+
             if reason is None and tracker.opener_used_recently(style_tag, opening_text):
+                # Content is genuinely fine, only the opening repeats. Keep it
+                # as a safety net instead of discarding a valid variant, but
+                # keep trying for something with a fresh opening too.
+                if opener_only_reject is None:
+                    opener_only_reject = (candidate, style_tag, used_fallback)
                 reason = (
                     f"this opening (\"{opener(opening_text)}...\") was already used recently "
                     f"for the '{style_tag}' style - start with different words"
                 )
+
             if reason is None:
                 accepted.append((candidate, style_tag, used_fallback))
                 tracker.remember(style_tag, candidate)
@@ -101,6 +109,13 @@ def augment_record(record: dict, args, tracker: StyleTracker, stats: QAStats) ->
                     avoid_reason = f"too similar ({ratio:.0%} match) to this previously accepted variant for the same request"
                 else:
                     avoid_text, avoid_reason = candidate, reason
+
+        if not slot_succeeded and opener_only_reject is not None:
+            candidate, style_tag, used_fallback = opener_only_reject
+            accepted.append((candidate, style_tag, used_fallback))
+            tracker.remember(style_tag, candidate)
+            stats.record_accepted(style_tag, used_fallback)
+            slot_succeeded = True
 
         if not slot_succeeded:
             stats.record_slot_failure(record["id"], slot, slot_attempts_log)
